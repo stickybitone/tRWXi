@@ -17,8 +17,6 @@ namespace tRWXi.Data
         internal ProcessInfo(int pid)
         {
             this.pid = pid;
-            this.rank = rank;
-            this.integrityLevel = integrityLevel;
         }
     }
 }

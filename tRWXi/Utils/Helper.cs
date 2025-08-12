@@ -6,7 +6,7 @@ namespace tRWXi.Utils
     {
         internal static void help()
         {
-            Console.WriteLine("tRWXi v1.3.0\n\nUsage: \n\t.\\tRWXi.exe /enumerate ;" +
+            Console.WriteLine("tRWXi v1.3.1\n\nUsage: \n\t.\\tRWXi.exe /enumerate ;" +
                                      "\n\t.\\tRWXi.exe /inject  /pid=<pid> /address=<hex address> /url=<remote shell code> ;" +
                                      "\n\t.\\tRWXi.exe /inject  /pid=<pid> /address=<hex address> /data=<hex code> ;" +
                                      "\n\t.\\tRWXi.exe /read    /pid=<pid> /address=<hex address> /size=<size> ;" +
